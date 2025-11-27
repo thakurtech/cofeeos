@@ -41,19 +41,41 @@ const recentOrders = [
 
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('overview');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     return (
-        <div className="min-h-screen bg-[#f8f5f2] flex">
+        <div className="min-h-screen bg-[#f8f5f2] flex relative">
+            {/* Mobile Sidebar Overlay */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-72 bg-[#2B1A12] text-white fixed h-full z-20 hidden md:flex flex-col">
-                <div className="p-8 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#BF5700] to-[#8B4513] flex items-center justify-center shadow-lg shadow-[#BF5700]/20">
-                        <Coffee className="h-5 w-5 text-white" />
+            <aside className={`
+                w-72 bg-[#2B1A12] text-white fixed h-full z-40 transition-transform duration-300 ease-in-out
+                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+                md:translate-x-0 md:flex flex-col
+            `}>
+                <div className="p-8 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#BF5700] to-[#8B4513] flex items-center justify-center shadow-lg shadow-[#BF5700]/20">
+                            <Coffee className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight">CaféOS</span>
                     </div>
-                    <span className="text-2xl font-bold tracking-tight">CaféOS</span>
+                    {/* Close button for mobile */}
+                    <button
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="md:hidden text-white/60 hover:text-white"
+                    >
+                        <ChevronRight className="h-6 w-6 rotate-180" />
+                    </button>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-2">
+                <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
                     {[
                         { id: 'overview', icon: LayoutDashboard, label: 'Overview' },
                         { id: 'orders', icon: ShoppingBag, label: 'Orders' },
@@ -63,7 +85,10 @@ export default function Dashboard() {
                     ].map((item) => (
                         <button
                             key={item.id}
-                            onClick={() => setActiveTab(item.id)}
+                            onClick={() => {
+                                setActiveTab(item.id);
+                                setIsMobileMenuOpen(false);
+                            }}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === item.id
                                 ? 'bg-[#BF5700] text-white shadow-lg shadow-[#BF5700]/20'
                                 : 'text-white/60 hover:bg-white/5 hover:text-white'
@@ -76,7 +101,7 @@ export default function Dashboard() {
                     ))}
                 </nav>
 
-                <div className="p-4">
+                <div className="p-4 mt-auto">
                     <div className="bg-white/5 rounded-2xl p-4 mb-4">
                         <div className="text-sm text-white/60 mb-1">Daily Goal</div>
                         <div className="flex justify-between items-end mb-2">
@@ -97,15 +122,26 @@ export default function Dashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 md:ml-72 p-8">
+            <main className="flex-1 md:ml-72 p-4 md:p-8 w-full">
                 {/* Header */}
-                <header className="flex justify-between items-center mb-10">
-                    <div>
-                        <h1 className="text-3xl font-bold text-[#2B1A12] mb-1">Good Morning, Sumit</h1>
-                        <p className="text-[#5C4033]">Here's what's happening in your café today.</p>
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        {/* Mobile Menu Button */}
+                        <button
+                            onClick={() => setIsMobileMenuOpen(true)}
+                            className="md:hidden p-2 bg-white rounded-xl shadow-sm text-[#2B1A12]"
+                        >
+                            <LayoutDashboard className="h-6 w-6" />
+                        </button>
+
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-bold text-[#2B1A12] mb-1">Good Morning, Sumit</h1>
+                            <p className="text-sm md:text-base text-[#5C4033]">Here's what's happening today.</p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="relative">
+
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                        <div className="relative hidden md:block">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5C4033]/50" />
                             <input
                                 type="text"
@@ -124,7 +160,7 @@ export default function Dashboard() {
                 </header>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-10">
                     {[
                         { label: 'Total Revenue', value: '₹12,450', change: '+15%', icon: DollarSign, color: 'from-[#BF5700] to-[#D4A017]' },
                         { label: 'Active Orders', value: '18', change: '+4', icon: ShoppingBag, color: 'from-[#2B1A12] to-[#5C4033]' },
@@ -136,59 +172,59 @@ export default function Dashboard() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.1 }}
-                            className="bg-white p-6 rounded-3xl shadow-sm border border-[#e8dfd6] hover:shadow-md transition-shadow"
+                            className="bg-white p-5 md:p-6 rounded-3xl shadow-sm border border-[#e8dfd6] hover:shadow-md transition-shadow"
                         >
                             <div className="flex justify-between items-start mb-4">
-                                <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-lg`}>
-                                    <stat.icon className="h-6 w-6 text-white" />
+                                <div className={`h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-lg`}>
+                                    <stat.icon className="h-5 w-5 md:h-6 md:w-6 text-white" />
                                 </div>
                                 <span className="px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">
                                     {stat.change}
                                 </span>
                             </div>
-                            <div className="text-3xl font-bold text-[#2B1A12] mb-1">{stat.value}</div>
+                            <div className="text-2xl md:text-3xl font-bold text-[#2B1A12] mb-1">{stat.value}</div>
                             <div className="text-sm text-[#5C4033]">{stat.label}</div>
                         </motion.div>
                     ))}
                 </div>
 
                 {/* Charts & Recent Orders */}
-                <div className="grid lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
                     {/* Chart */}
-                    <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-[#e8dfd6]">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-xl font-bold text-[#2B1A12]">Revenue Overview</h3>
+                    <div className="lg:col-span-2 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#e8dfd6]">
+                        <div className="flex justify-between items-center mb-6 md:mb-8">
+                            <h3 className="text-lg md:text-xl font-bold text-[#2B1A12]">Revenue Overview</h3>
                             <select className="bg-[#f8f5f2] border-none rounded-lg px-3 py-1 text-sm font-medium text-[#5C4033]">
                                 <option>Today</option>
                                 <option>This Week</option>
                                 <option>This Month</option>
                             </select>
                         </div>
-                        <div className="h-80">
+                        <div className="h-64 md:h-80">
                             <DashboardChart />
                         </div>
                     </div>
 
                     {/* Recent Orders */}
-                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#e8dfd6]">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-xl font-bold text-[#2B1A12]">Recent Orders</h3>
+                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#e8dfd6]">
+                        <div className="flex justify-between items-center mb-6 md:mb-8">
+                            <h3 className="text-lg md:text-xl font-bold text-[#2B1A12]">Recent Orders</h3>
                             <Link href="/pos" className="text-sm font-bold text-[#BF5700] hover:underline">View All</Link>
                         </div>
-                        <div className="space-y-6">
+                        <div className="space-y-4 md:space-y-6">
                             {recentOrders.map((order, i) => (
                                 <div key={i} className="flex items-center justify-between p-3 hover:bg-[#f8f5f2] rounded-xl transition-colors cursor-pointer group">
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-10 w-10 rounded-full bg-[#BF5700]/10 flex items-center justify-center text-[#BF5700] font-bold group-hover:bg-[#BF5700] group-hover:text-white transition-colors">
+                                    <div className="flex items-center gap-3 md:gap-4">
+                                        <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-[#BF5700]/10 flex items-center justify-center text-[#BF5700] font-bold group-hover:bg-[#BF5700] group-hover:text-white transition-colors text-xs md:text-sm">
                                             {order.id.slice(1)}
                                         </div>
                                         <div>
-                                            <div className="font-bold text-[#2B1A12]">{order.items}</div>
+                                            <div className="font-bold text-[#2B1A12] text-sm md:text-base">{order.items}</div>
                                             <div className="text-xs text-[#5C4033]">{order.time}</div>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="font-bold text-[#2B1A12]">{order.total}</div>
+                                        <div className="font-bold text-[#2B1A12] text-sm md:text-base">{order.total}</div>
                                         <div className={`text-xs font-medium ${order.status === 'Completed' ? 'text-green-600' :
                                             order.status === 'Pending' ? 'text-orange-500' : 'text-blue-500'
                                             }`}>
