@@ -82,18 +82,54 @@ export default function HomePage() {
       <main className="pt-24 pb-16 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-16"
-          >
-            <h1 className="text-5xl md:text-6xl font-serif font-bold text-[#2B1A12] mb-4">
+          <div className="text-center mb-12 md:mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="inline-flex items-center gap-2 bg-[#fffcf8] px-4 py-2 md:px-6 md:py-3 rounded-full border border-[#e6dcc8] mb-6 md:mb-8"
+            >
+              <Coffee className="w-4 h-4 md:w-5 md:h-5 text-[#BF5700]" />
+              <span className="text-xs md:text-sm font-medium text-[#8B4513]">Complete Café Management System</span>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[#2B1A12] mb-4 md:mb-6"
+            >
               Welcome to <span className="text-[#BF5700]">CaféOS</span>
-            </h1>
-            <p className="text-xl text-[#8B4513] max-w-2xl mx-auto">
-              Your complete cafe management system. From orders to loyalty programs, everything in one place.
-            </p>
-          </motion.div>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-base sm:text-lg md:text-xl text-[#8B4513] mb-6 md:mb-8 max-w-2xl mx-auto px-4"
+            >
+              Everything you need to run your café smoothly - from POS to kitchen management,
+              customer loyalty to affiliate programs.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4"
+            >
+              <Link href="/dashboard">
+                <Button className="w-full sm:w-auto bg-[#BF5700] hover:bg-[#8B4513] text-white px-6 md:px-8 py-5 md:py-6 text-base md:text-lg rounded-xl shadow-lg hover:shadow-xl transition-all">
+                  Get Started
+                  <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
+                </Button>
+              </Link>
+              <Link href="/table/1">
+                <Button variant="outline" className="w-full sm:w-auto border-2 border-[#BF5700] text-[#BF5700] hover:bg-[#fffcf8] px-6 md:px-8 py-5 md:py-6 text-base md:text-lg rounded-xl">
+                  View Demo
+                </Button>
+              </Link>
+            </motion.div>
+          </div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
@@ -121,39 +157,41 @@ export default function HomePage() {
             })}
           </div>
 
-          {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => {
-              const Icon = feature.icon
-              return (
-                <motion.div
-                  key={feature.name}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="group"
-                >
-                  <Link href={feature.href}>
-                    <div className="bg-white rounded-2xl p-6 border border-[#e6dcc8] shadow-sm hover:shadow-xl transition-all h-full">
-                      <div className={`w-14 h-14 bg-gradient-to-br ${feature.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                        <Icon className="w-7 h-7 text-white" />
-                      </div>
-
-                      <h3 className="text-xl font-bold text-[#2B1A12] mb-2">{feature.name}</h3>
-                      <p className="text-[#8B4513] mb-4">{feature.description}</p>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs px-3 py-1 bg-[#fffcf8] text-[#BF5700] rounded-full border border-[#e6dcc8]">
-                          {feature.role}
-                        </span>
-                        <ArrowRight className="w-5 h-5 text-[#BF5700] group-hover:translate-x-2 transition-transform" />
-                      </div>
+          {/* Features Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 px-4">{features.map((feature, index) => {
+            const Icon = feature.icon
+            return (
+              <motion.div
+                key={feature.href}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 + index * 0.1 }}
+              >
+                <Link href={feature.href}>
+                  <div className="group relative bg-white rounded-2xl p-6 md:p-8 border-2 border-[#e6dcc8] hover:border-[#BF5700] transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer h-full">
+                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 md:mb-6 group-hover:scale-110 transition-transform`}>
+                      <Icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
                     </div>
-                  </Link>
-                </motion.div>
-              )
-            })}
+
+                    <h3 className="text-xl md:text-2xl font-bold text-[#2B1A12] mb-2 md:mb-3">
+                      {feature.name}
+                    </h3>
+
+                    <p className="text-sm md:text-base text-[#8B4513] mb-4">
+                      {feature.description}
+                    </p>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs md:text-sm px-3 py-1 bg-[#fffcf8] rounded-full text-[#8B4513] font-medium">
+                        {feature.role}
+                      </span>
+                      <ArrowRight className="w-5 h-5 text-[#BF5700] group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            )
+          })}
           </div>
 
           {/* Quick Actions */}
