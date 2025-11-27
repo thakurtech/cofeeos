@@ -209,6 +209,7 @@ model AffiliateAccount {
   user        User     @relation(fields: [userId], references: [id])
   code        String   @unique
   balance     Float    @default(0)
+  commissionRate Float @default(150) // Fixed commission per active cafe
   
   referrals   AffiliateReferral[]
   payouts     AffiliatePayout[]

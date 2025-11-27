@@ -38,9 +38,19 @@ export class AuthService {
                 email,
                 name,
                 password: hashedPassword,
-                role: Role.OWNER,
+                role: registerDto.role || Role.OWNER,
             },
         });
+
+        // If registering as Affiliate, create AffiliateAccount
+        if (user.role === Role.AFFILIATE) {
+            await this.prisma.affiliateAccount.create({
+                data: {
+                    userId: user.id,
+                    code: `AFF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`, // Generate unique code
+                }
+            });
+        }
 
         return this.generateToken(user);
     }

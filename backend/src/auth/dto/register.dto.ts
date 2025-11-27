@@ -14,4 +14,7 @@ export class RegisterDto {
     @IsNotEmpty()
     @MinLength(6)
     password: string;
+
+    @IsOptional()
+    role?: any; // Using any to avoid circular dependency with Role enum, or import it if possible
 }
