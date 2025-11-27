@@ -4,7 +4,14 @@ import { AuthService } from './auth/auth.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
+
+  // CORS configuration for production
+  app.enableCors({
+    origin: process.env.NODE_ENV === 'production'
+      ? ['https://cafeos.vercel.app', 'https://cofeeos.vercel.app']
+      : '*',
+    credentials: true,
+  });
 
   // Create super admin on first run
   const authService = app.get(AuthService);
