@@ -8,12 +8,13 @@ datasource db {
 }
 
 enum Role {
-  OWNER
-  MANAGER
-  CASHIER
-  CUSTOMER
-  AFFILIATE
-  ADMIN
+  SUPER_ADMIN  // Platform owner (Sumit)
+  CAFE_OWNER   // Cafe owner
+  MANAGER      // Cafe manager
+  CASHIER      // POS staff
+  CHEF         // Kitchen staff
+  AFFILIATE    // Affiliate partner
+  CUSTOMER     // End customer
 }
 
 enum OrderStatus {
@@ -49,6 +50,7 @@ model User {
   orders          Order[]
   loyaltyProfile  LoyaltyProfile?
   affiliateAccount AffiliateAccount?
+  referralCode    ReferralCode?
   sessions        Session[]
 }
 
@@ -155,9 +157,19 @@ model LoyaltyProfile {
   totalVisits Int      @default(0)
   lastVisit   DateTime?
   streakCount Int      @default(0)
+  tier        String   @default("Bronze") // Bronze, Silver, Gold
   
   transactions LoyaltyTransaction[]
   rewards      Reward[]
+}
+
+model ReferralCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  usageCount Int     @default(0)
+  createdAt DateTime @default(now())
 }
 
 model LoyaltyTransaction {

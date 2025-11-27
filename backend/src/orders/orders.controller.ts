@@ -9,7 +9,19 @@ export class OrdersController {
 
     @Post()
     create(@Body() createOrderDto: CreateOrderDto) {
-        return this.ordersService.create(createOrderDto);
+        // Hardcoded shopId for demo
+        return this.ordersService.create('shop-123', createOrderDto);
+    }
+
+    @Get('kitchen')
+    getKitchenOrders() {
+        // Hardcoded shopId for demo
+        return this.ordersService.getKitchenOrders('shop-123');
+    }
+
+    @Post(':id/status')
+    updateStatus(@Param('id') id: string, @Body('status') status: string) {
+        return this.ordersService.updateStatus(id, status);
     }
 
     @Get()

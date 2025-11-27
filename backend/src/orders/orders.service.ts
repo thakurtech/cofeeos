@@ -7,8 +7,8 @@ import { PrismaService } from '../prisma.service';
 export class OrdersService {
     constructor(private prisma: PrismaService) { }
 
-    async create(createOrderDto: CreateOrderDto) {
-        const { shopId, items, customerId, source } = createOrderDto;
+    async create(shopId: string, createOrderDto: CreateOrderDto) {
+        const { items, customerId, source } = createOrderDto;
 
         // 1. Calculate Total & Verify Items
         let totalAmount = 0;
@@ -49,6 +49,28 @@ export class OrdersService {
                     include: { menuItem: true },
                 },
             },
+        });
+    }
+
+    async getKitchenOrders(shopId: string) {
+        return this.prisma.order.findMany({
+            where: {
+                shopId,
+                status: { in: ['PENDING', 'PREPARING'] },
+            },
+            include: {
+                items: {
+                    include: { menuItem: true }
+                }
+            },
+            orderBy: { createdAt: 'asc' }
+        });
+    }
+
+    async updateStatus(orderId: string, status: any) {
+        return this.prisma.order.update({
+            where: { id: orderId },
+            data: { status }
         });
     }
 

@@ -1,10 +1,7 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -13,74 +10,80 @@ export class AuthService {
         private jwtService: JwtService,
     ) { }
 
-    async register(registerDto: RegisterDto) {
-        const { email, password, name, phone } = registerDto;
-
-        // Check if user exists by phone or email
-        const existingUser = await this.prisma.user.findFirst({
-            where: {
-                OR: [
-                    { phone },
-                    ...(email ? [{ email }] : [])
-                ]
-            }
+    async validateUser(email: string, password: string): Promise<any> {
+        const user = await this.prisma.user.findUnique({
+            where: { email },
         });
 
-        if (existingUser) {
-            throw new ConflictException('User already exists');
+        if (user && await bcrypt.compare(password, user.password)) {
+            const { password, ...result } = user;
+            return result;
         }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const user = await this.prisma.user.create({
-            data: {
-                phone,
-                email,
-                name,
-                password: hashedPassword,
-                role: registerDto.role || Role.OWNER,
-            },
-        });
-
-        // If registering as Affiliate, create AffiliateAccount
-        if (user.role === Role.AFFILIATE) {
-            await this.prisma.affiliateAccount.create({
-                data: {
-                    userId: user.id,
-                    code: `AFF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`, // Generate unique code
-                }
-            });
-        }
-
-        return this.generateToken(user);
+        return null;
     }
 
-    async login(loginDto: LoginDto) {
-        const { email, password } = loginDto;
+    async login(email: string, password: string) {
+        const user = await this.validateUser(email, password);
 
-        const user = await this.prisma.user.findUnique({ where: { email } });
         if (!user) {
-            throw new UnauthorizedException('Invalid credentials');
+            throw new Error('Invalid credentials');
         }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            throw new UnauthorizedException('Invalid credentials');
-        }
+        const payload = {
+            email: user.email,
+            sub: user.id,
+            role: user.role,
+            shopId: user.shopId
+        };
 
-        return this.generateToken(user);
-    }
-
-    private generateToken(user: any) {
-        const payload = { sub: user.id, email: user.email, role: user.role };
         return {
             access_token: this.jwtService.sign(payload),
             user: {
                 id: user.id,
-                name: user.name,
                 email: user.email,
+                name: user.name,
                 role: user.role,
+                shopId: user.shopId,
             },
         };
+    }
+
+    async register(email: string, password: string, name: string, role: string = 'CUSTOMER') {
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = await this.prisma.user.create({
+            data: {
+                email,
+                password: hashedPassword,
+                name,
+                role: role as any,
+                phone: email, // temporary - use email as phone
+            },
+        });
+
+        const { password: _, ...result } = user;
+        return result;
+    }
+
+    async createSuperAdmin() {
+        const existingAdmin = await this.prisma.user.findUnique({
+            where: { email: 'admin@cafeos.com' },
+        });
+
+        if (!existingAdmin) {
+            const hashedPassword = await bcrypt.hash('password', 10);
+
+            await this.prisma.user.create({
+                data: {
+                    email: 'admin@cafeos.com',
+                    password: hashedPassword,
+                    name: 'Sumit (Platform Owner)',
+                    role: 'SUPER_ADMIN',
+                    phone: 'admin',
+                },
+            });
+
+            console.log('✅ Super admin created: admin@cafeos.com / password');
+        }
     }
 }
