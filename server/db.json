@@ -1,0 +1,59 @@
+{
+    "products": [
+        {
+            "id": "1",
+            "name": "Cappuccino",
+            "description": "Rich espresso with steamed milk foam",
+            "price": 180,
+            "category": "Coffee",
+            "image": "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=500&q=80",
+            "available": true
+        },
+        {
+            "id": "2",
+            "name": "Latte",
+            "description": "Espresso with steamed milk and a light layer of foam",
+            "price": 200,
+            "category": "Coffee",
+            "image": "https://images.unsplash.com/photo-1570968992193-96a781894568?w=500&q=80",
+            "available": true
+        },
+        {
+            "id": "3",
+            "name": "Espresso",
+            "description": "Strong, concentrated coffee",
+            "price": 120,
+            "category": "Coffee",
+            "image": "https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=500&q=80",
+            "available": true
+        },
+        {
+            "id": "4",
+            "name": "Mocha",
+            "description": "Espresso with chocolate and steamed milk",
+            "price": 220,
+            "category": "Coffee",
+            "image": "https://images.unsplash.com/photo-1578314675249-a6910f80cc4e?w=500&q=80",
+            "available": true
+        },
+        {
+            "id": "5",
+            "name": "Croissant",
+            "description": "Buttery, flaky pastry",
+            "price": 150,
+            "category": "Snack",
+            "image": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=500&q=80",
+            "available": true
+        },
+        {
+            "id": "6",
+            "name": "Blueberry Muffin",
+            "description": "Freshly baked muffin with blueberries",
+            "price": 140,
+            "category": "Snack",
+            "image": "https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=500&q=80",
+            "available": true
+        }
+    ],
+    "orders": []
+}
