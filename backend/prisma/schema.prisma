@@ -7,109 +7,84 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  SUPER_ADMIN  // Platform owner (Sumit)
-  CAFE_OWNER   // Cafe owner
-  MANAGER      // Cafe manager
-  CASHIER      // POS staff
-  CHEF         // Kitchen staff
-  AFFILIATE    // Affiliate partner
-  CUSTOMER     // End customer
-}
-
-enum OrderStatus {
-  PENDING
-  CONFIRMED
-  PREPARING
-  READY
-  COMPLETED
-  CANCELLED
-}
-
-enum OrderSource {
-  POS
-  QR_TABLE
-  QR_PICKUP
-  DELIVERY
-  MINI_APP
-}
-
 model User {
-  id        String   @id @default(uuid())
-  phone     String   @unique
-  name      String?
-  email     String?  @unique
-  password  String   @default("$2b$10$EpRnTzVlqHNP0.fUbXUwSOal5wAllaRpTp.1x3/EnsPawL.9v.que") // Default hash for "password"
-  role      Role     @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  shopId          String?
-  shop            Shop?             @relation(fields: [shopId], references: [id])
-  orders          Order[]
-  loyaltyProfile  LoyaltyProfile?
+  id               String            @id @default(uuid())
+  phone            String            @unique
+  name             String?
+  email            String?           @unique
+  password         String            @default("$2b$10$EpRnTzVlqHNP0.fUbXUwSOal5wAllaRpTp.1x3/EnsPawL.9v.que")
+  role             Role              @default(CUSTOMER)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  shopId           String?
   affiliateAccount AffiliateAccount?
-  referralCode    ReferralCode?
-  sessions        Session[]
+  loyaltyProfile   LoyaltyProfile?
+  orders           Order[]
+  referralCode     ReferralCode?
+  sessions         Session[]
+  shop             Shop?             @relation(fields: [shopId], references: [id])
 }
 
 model Shop {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  address     String?
-  phone       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Settings
-  currency    String   @default("INR")
-  themeColor  String   @default("#000000")
-  
-  // Relations
-  users       User[]
-  menuCategories MenuCategory[]
-  orders      Order[]
-  campaigns   Campaign[]
-  inventory   InventoryItem[]
+  id                String             @id @default(uuid())
+  name              String
+  slug              String             @unique
+  address           String?
+  phone             String?
+  email             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  currency          String             @default("INR")
+  themeColor        String             @default("#BF5700")
+  logo              String?
+  tagline           String?
+  upiId             String?
+  gstNumber         String?
+  fssaiNumber       String?
+  isActive          Boolean            @default(true)
+  trialEndsAt       DateTime?
   affiliateReferral AffiliateReferral?
+  campaigns         Campaign[]
+  discounts         Discount[]
+  inventory         InventoryItem[]
+  menuCategories    MenuCategory[]
+  orders            Order[]
+  shifts            Shift[]
+  users             User[]
 }
 
 model MenuCategory {
   id        String     @id @default(uuid())
   name      String
   shopId    String
+  sortOrder Int        @default(0)
   shop      Shop       @relation(fields: [shopId], references: [id])
   items     MenuItem[]
-  sortOrder Int        @default(0)
 }
 
 model MenuItem {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  price       Float
-  image       String?
-  isAvailable Boolean  @default(true)
-  categoryId  String
-  category    MenuCategory @relation(fields: [categoryId], references: [id])
-  modifiers   ModifierGroup[]
-  orderItems  OrderItem[]
-  
-  // AI & Stats
-  popularityScore Float @default(0)
-  margin          Float @default(0)
+  id              String          @id @default(uuid())
+  name            String
+  description     String?
+  price           Float
+  image           String?
+  isAvailable     Boolean         @default(true)
+  categoryId      String
+  popularityScore Float           @default(0)
+  margin          Float           @default(0)
+  category        MenuCategory    @relation(fields: [categoryId], references: [id])
+  modifiers       ModifierGroup[]
+  orderItems      OrderItem[]
 }
 
 model ModifierGroup {
-  id        String     @id @default(uuid())
-  name      String
-  minSelect Int        @default(0)
-  maxSelect Int        @default(1)
+  id         String           @id @default(uuid())
+  name       String
+  minSelect  Int              @default(0)
+  maxSelect  Int              @default(1)
   menuItemId String
-  menuItem  MenuItem   @relation(fields: [menuItemId], references: [id])
-  options   ModifierOption[]
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id])
+  options    ModifierOption[]
 }
 
 model ModifierOption {
@@ -122,156 +97,242 @@ model ModifierOption {
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  shortId     String      // For kitchen display (e.g. #102)
-  shopId      String
-  shop        Shop        @relation(fields: [shopId], references: [id])
-  customerId  String?
-  customer    User?       @relation(fields: [customerId], references: [id])
-  status      OrderStatus @default(PENDING)
-  source      OrderSource @default(POS)
-  totalAmount Float
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
-  items       OrderItem[]
-  attribution Attribution?
+  id             String        @id @default(uuid())
+  shortId        String
+  shopId         String
+  customerId     String?
+  status         OrderStatus   @default(PENDING)
+  source         OrderSource   @default(POS)
+  totalAmount    Float
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  paymentMethod  PaymentMethod @default(CASH)
+  paymentStatus  String        @default("PENDING")
+  paidAt         DateTime?
+  discountCode   String?
+  discountAmount Float         @default(0)
+  tableNumber    String?
+  notes          String?
+  cashierId      String?
+  attribution    Attribution?
+  customer       User?         @relation(fields: [customerId], references: [id])
+  shop           Shop          @relation(fields: [shopId], references: [id])
+  items          OrderItem[]
 }
 
 model OrderItem {
-  id          String   @id @default(uuid())
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id])
-  menuItemId  String
-  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
-  quantity    Int
-  price       Float
-  modifiers   ModifierOption[] @relation("OrderItemModifiers")
+  id         String           @id @default(uuid())
+  orderId    String
+  menuItemId String
+  quantity   Int
+  price      Float
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id])
+  order      Order            @relation(fields: [orderId], references: [id])
+  modifiers  ModifierOption[] @relation("OrderItemModifiers")
 }
 
 model LoyaltyProfile {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  points      Int      @default(0)
-  totalVisits Int      @default(0)
-  lastVisit   DateTime?
-  streakCount Int      @default(0)
-  tier        String   @default("Bronze") // Bronze, Silver, Gold
-  
+  id           String               @id @default(uuid())
+  userId       String               @unique
+  points       Int                  @default(0)
+  totalVisits  Int                  @default(0)
+  lastVisit    DateTime?
+  streakCount  Int                  @default(0)
+  tier         String               @default("Bronze")
+  user         User                 @relation(fields: [userId], references: [id])
   transactions LoyaltyTransaction[]
   rewards      Reward[]
 }
 
 model ReferralCode {
-  id        String   @id @default(uuid())
-  code      String   @unique
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  usageCount Int     @default(0)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  code       String   @unique
+  userId     String   @unique
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
 }
 
 model LoyaltyTransaction {
-  id          String   @id @default(uuid())
-  profileId   String
-  profile     LoyaltyProfile @relation(fields: [profileId], references: [id])
-  points      Int      // Positive for earn, negative for redeem
-  reason      String   // "Order #123", "Check-in", "Referral"
-  createdAt   DateTime @default(now())
+  id        String         @id @default(uuid())
+  profileId String
+  points    Int
+  reason    String
+  createdAt DateTime       @default(now())
+  profile   LoyaltyProfile @relation(fields: [profileId], references: [id])
 }
 
 model Reward {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   profileId   String
-  profile     LoyaltyProfile @relation(fields: [profileId], references: [id])
   name        String
   description String?
-  isRedeemed  Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  isRedeemed  Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  profile     LoyaltyProfile @relation(fields: [profileId], references: [id])
 }
 
 model Campaign {
-  id          String   @id @default(uuid())
-  shopId      String
-  shop        Shop     @relation(fields: [shopId], references: [id])
-  name        String
-  type        String   // "POSTER", "WHATSAPP_BLAST", "HAPPY_HOUR"
-  status      String   // "DRAFT", "ACTIVE", "COMPLETED"
-  content     String?  // AI generated caption or JSON
-  imageUrl    String?
-  metrics     Json?    // { views: 100, clicks: 10 }
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  shopId    String
+  name      String
+  type      String
+  status    String
+  content   String?
+  imageUrl  String?
+  metrics   Json?
+  createdAt DateTime @default(now())
+  shop      Shop     @relation(fields: [shopId], references: [id])
 }
 
 model Attribution {
-  id          String   @id @default(uuid())
-  orderId     String   @unique
-  order       Order    @relation(fields: [orderId], references: [id])
-  source      String   // "INFLUENCER_QR", "CAMPAIGN_123", "ORGANIC"
-  campaignId  String?
+  id           String   @id @default(uuid())
+  orderId      String   @unique
+  source       String
+  campaignId   String?
   influencerId String?
-  affiliateId String?
-  createdAt   DateTime @default(now())
+  affiliateId  String?
+  createdAt    DateTime @default(now())
+  order        Order    @relation(fields: [orderId], references: [id])
 }
 
 model AffiliateAccount {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  code        String   @unique
-  balance     Float    @default(0)
-  commissionRate Float @default(150) // Fixed commission per active cafe
-  
-  referrals   AffiliateReferral[]
-  payouts     AffiliatePayout[]
+  id             String              @id @default(uuid())
+  userId         String              @unique
+  code           String              @unique
+  balance        Float               @default(0)
+  commissionRate Float               @default(150)
+  user           User                @relation(fields: [userId], references: [id])
+  payouts        AffiliatePayout[]
+  referrals      AffiliateReferral[]
 }
 
 model AffiliateReferral {
-  id          String   @id @default(uuid())
+  id          String           @id @default(uuid())
   affiliateId String
+  shopId      String           @unique
+  status      String
+  createdAt   DateTime         @default(now())
   affiliate   AffiliateAccount @relation(fields: [affiliateId], references: [id])
-  shopId      String   @unique
-  shop        Shop     @relation(fields: [shopId], references: [id])
-  status      String   // "ACTIVE", "TRIAL", "CHURNED"
-  createdAt   DateTime @default(now())
+  shop        Shop             @relation(fields: [shopId], references: [id])
 }
 
 model AffiliatePayout {
-  id          String   @id @default(uuid())
+  id          String           @id @default(uuid())
   affiliateId String
-  affiliate   AffiliateAccount @relation(fields: [affiliateId], references: [id])
   amount      Float
-  status      String   // "PENDING", "PAID", "FAILED"
-  createdAt   DateTime @default(now())
+  status      String
+  createdAt   DateTime         @default(now())
+  affiliate   AffiliateAccount @relation(fields: [affiliateId], references: [id])
 }
 
 model InventoryItem {
-  id          String   @id @default(uuid())
-  shopId      String
-  shop        Shop     @relation(fields: [shopId], references: [id])
-  name        String
-  quantity    Float
-  unit        String   // "kg", "liters", "units"
-  lowStockThreshold Float @default(5)
-  expiryDate  DateTime?
-  updatedAt   DateTime @updatedAt
+  id                String    @id @default(uuid())
+  shopId            String
+  name              String
+  quantity          Float
+  unit              String
+  lowStockThreshold Float     @default(5)
+  expiryDate        DateTime?
+  updatedAt         DateTime  @updatedAt
+  shop              Shop      @relation(fields: [shopId], references: [id])
 }
 
 model Session {
   id        String   @id @default(uuid())
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
   token     String   @unique
-  source    String?  // UTM source, QR code ID
+  source    String?
   createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
 }
 
 model AiLog {
   id        String   @id @default(uuid())
-  feature   String   // "POSTER", "UPSELL", "BRIEFING"
+  feature   String
   input     String?
   output    String?
   tokens    Int?
   createdAt DateTime @default(now())
+}
+
+model Shift {
+  id           String    @id @default(uuid())
+  shopId       String
+  userId       String
+  startTime    DateTime  @default(now())
+  endTime      DateTime?
+  openingCash  Float     @default(0)
+  closingCash  Float?
+  expectedCash Float?
+  notes        String?
+  status       String    @default("ACTIVE")
+  shop         Shop      @relation(fields: [shopId], references: [id])
+}
+
+model Discount {
+  id          String    @id @default(uuid())
+  shopId      String
+  code        String
+  type        String
+  value       Float
+  minOrder    Float     @default(0)
+  maxDiscount Float?
+  usageLimit  Int?
+  usageCount  Int       @default(0)
+  validFrom   DateTime  @default(now())
+  validUntil  DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  shop        Shop      @relation(fields: [shopId], references: [id])
+
+  @@unique([shopId, code])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  shopId    String?
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  String?
+  newValue  String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  SUPER_ADMIN
+  CAFE_OWNER
+  MANAGER
+  CASHIER
+  CHEF
+  AFFILIATE
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+  HELD
+}
+
+enum OrderSource {
+  POS
+  QR_TABLE
+  QR_PICKUP
+  DELIVERY
+  MINI_APP
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  SPLIT
 }

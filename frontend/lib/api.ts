@@ -1,33 +1,111 @@
 import { MenuCategory, CartItem } from './types';
 
-const API_URL = 'http://localhost:3001';
+// API URL from environment variable with fallback
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-export async function fetchMenu(shopSlug: string = 'cafe-noir'): Promise<MenuCategory[]> {
-    const res = await fetch(`${API_URL}/menu?shop=${shopSlug}`);
+// Helper to get auth token
+function getAuthToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('auth_token');
+}
+
+// Helper for authenticated requests
+async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+    const token = getAuthToken();
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+
+    if (token) {
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401) {
+        // Token expired or invalid
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            window.location.href = '/login';
+        }
+    }
+
+    return response;
+}
+
+// ==================== MENU ====================
+
+export async function fetchMenu(shopSlug?: string): Promise<MenuCategory[]> {
+    // Get shop slug from passed param or from localStorage
+    let slug = shopSlug;
+    if (!slug && typeof window !== 'undefined') {
+        const shopData = localStorage.getItem('shop_data');
+        if (shopData) {
+            const shop = JSON.parse(shopData);
+            slug = shop.slug;
+        }
+    }
+
+    if (!slug) {
+        console.warn('No shop slug available for fetchMenu');
+        return [];
+    }
+
+    const res = await fetchWithAuth(`${API_URL}/menu?shop=${slug}`);
     if (!res.ok) throw new Error('Failed to fetch menu');
     return res.json();
 }
 
-export async function createOrder(shopId: string, items: CartItem[]) {
-    const orderItems = items.map((item) => ({
-        menuItemId: item.id,
-        quantity: item.quantity,
-        modifiers: item.selectedModifiers.map((m) => m.id),
-    }));
+// ==================== ORDERS ====================
 
-    const res = await fetch(`${API_URL}/orders`, {
+export interface CreateOrderPayload {
+    shopId: string;
+    items: { menuItemId: string; quantity: number; modifiers?: string[] }[];
+    source: 'POS' | 'QR_TABLE' | 'QR_PICKUP';
+    customerId?: string;
+    tableNumber?: string;
+    paymentMethod?: 'UPI' | 'CASH';
+    discountCode?: string;
+    notes?: string;
+}
+
+export async function createOrder(payload: CreateOrderPayload) {
+    const res = await fetchWithAuth(`${API_URL}/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            shopId,
-            items: orderItems,
-            source: 'POS',
-        }),
+        body: JSON.stringify(payload),
     });
 
-    if (!res.ok) throw new Error('Failed to create order');
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({ message: 'Failed to create order' }));
+        throw new Error(error.message || 'Failed to create order');
+    }
     return res.json();
 }
+
+export async function getOrders(shopId: string) {
+    const res = await fetchWithAuth(`${API_URL}/orders?shopId=${shopId}`);
+    if (!res.ok) throw new Error('Failed to fetch orders');
+    return res.json();
+}
+
+export async function getKitchenOrders(shopId: string) {
+    const res = await fetchWithAuth(`${API_URL}/orders/kitchen?shopId=${shopId}`);
+    if (!res.ok) throw new Error('Failed to fetch kitchen orders');
+    return res.json();
+}
+
+export async function updateOrderStatus(orderId: string, status: string) {
+    const res = await fetchWithAuth(`${API_URL}/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
+    if (!res.ok) throw new Error('Failed to update order status');
+    return res.json();
+}
+
+// ==================== AUTH ====================
 
 export async function login(email: string, password: string) {
     const res = await fetch(`${API_URL}/auth/login`, {
@@ -36,6 +114,54 @@ export async function login(email: string, password: string) {
         body: JSON.stringify({ email, password }),
     });
 
-    if (!res.ok) throw new Error('Login failed');
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({ message: 'Login failed' }));
+        throw new Error(error.message || 'Login failed');
+    }
     return res.json();
 }
+
+export async function register(data: { email: string; password: string; name: string; role?: string }) {
+    const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({ message: 'Registration failed' }));
+        throw new Error(error.message || 'Registration failed');
+    }
+    return res.json();
+}
+
+// ==================== SHOPS ====================
+
+export async function getShopBySlug(slug: string) {
+    const res = await fetchWithAuth(`${API_URL}/shops/${slug}`);
+    if (!res.ok) throw new Error('Shop not found');
+    return res.json();
+}
+
+export async function getShops() {
+    const res = await fetchWithAuth(`${API_URL}/shops`);
+    if (!res.ok) throw new Error('Failed to fetch shops');
+    return res.json();
+}
+
+// ==================== REPORTS ====================
+
+export async function getSalesReport(shopId: string, from: string, to: string) {
+    const res = await fetchWithAuth(`${API_URL}/reports/sales?shopId=${shopId}&from=${from}&to=${to}`);
+    if (!res.ok) throw new Error('Failed to fetch sales report');
+    return res.json();
+}
+
+export async function getTopItems(shopId: string, limit: number = 10) {
+    const res = await fetchWithAuth(`${API_URL}/reports/top-items?shopId=${shopId}&limit=${limit}`);
+    if (!res.ok) throw new Error('Failed to fetch top items');
+    return res.json();
+}
+
+// Export API URL for WebSocket connections
+export { API_URL };

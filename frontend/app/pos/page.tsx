@@ -29,7 +29,7 @@ export default function POSPage() {
                                 <span className="font-medium">Shift: Morning</span>
                             </div>
                             <span className="h-4 w-px bg-[#e8dfd6]"></span>
-                            <span className="font-medium">Server: John Doe</span>
+                            <span className="font-medium">Server: On Duty</span>
                         </div>
                     </header>
                     <div className="flex-1 overflow-hidden">

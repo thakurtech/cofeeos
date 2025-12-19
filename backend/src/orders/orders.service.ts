@@ -2,13 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from '../prisma.service';
+import { OrdersGateway } from './orders.gateway';
 
 @Injectable()
 export class OrdersService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private ordersGateway: OrdersGateway,
+    ) { }
 
     async create(shopId: string, createOrderDto: CreateOrderDto) {
-        const { items, customerId, source } = createOrderDto;
+        const { items, customerId, source, paymentMethod, discountCode, notes, tableNumber } = createOrderDto;
 
         // 1. Calculate Total & Verify Items
         let totalAmount = 0;
@@ -31,15 +35,53 @@ export class OrdersService {
             });
         }
 
-        // 2. Create Order
-        return this.prisma.order.create({
+        // 2. Apply discount if code provided
+        let discountAmount = 0;
+        if (discountCode) {
+            const discount = await this.prisma.discount.findFirst({
+                where: {
+                    shopId,
+                    code: discountCode,
+                    isActive: true,
+                },
+            });
+
+            if (discount) {
+                if (discount.type === 'PERCENTAGE') {
+                    discountAmount = (totalAmount * discount.value) / 100;
+                    if (discount.maxDiscount) {
+                        discountAmount = Math.min(discountAmount, discount.maxDiscount);
+                    }
+                } else if (discount.type === 'FIXED') {
+                    discountAmount = discount.value;
+                }
+
+                // Update usage count
+                await this.prisma.discount.update({
+                    where: { id: discount.id },
+                    data: { usageCount: { increment: 1 } },
+                });
+            }
+        }
+
+        const finalAmount = Math.max(0, totalAmount - discountAmount);
+
+        // 3. Create Order
+        const order = await this.prisma.order.create({
             data: {
                 shopId,
                 customerId,
                 source: source || 'POS',
-                totalAmount,
+                totalAmount: finalAmount,
                 shortId: `#${Math.floor(1000 + Math.random() * 9000)}`,
                 status: 'PENDING',
+                paymentMethod: paymentMethod || 'CASH',
+                paymentStatus: 'PAID', // For POS, assume paid immediately
+                paidAt: new Date(),
+                discountCode,
+                discountAmount,
+                tableNumber,
+                notes,
                 items: {
                     create: orderItemsData,
                 },
@@ -50,13 +92,19 @@ export class OrdersService {
                 },
             },
         });
+
+        // 4. Emit real-time event to kitchen
+        this.ordersGateway.emitNewOrder(shopId, order);
+        this.ordersGateway.emitSoundAlert(shopId, 'newOrder');
+
+        return order;
     }
 
     async getKitchenOrders(shopId: string) {
         return this.prisma.order.findMany({
             where: {
                 shopId,
-                status: { in: ['PENDING', 'PREPARING'] },
+                status: { in: ['PENDING', 'PREPARING', 'READY'] },
             },
             include: {
                 items: {
@@ -68,10 +116,23 @@ export class OrdersService {
     }
 
     async updateStatus(orderId: string, status: any) {
-        return this.prisma.order.update({
+        const order = await this.prisma.order.update({
             where: { id: orderId },
-            data: { status }
+            data: { status },
+            include: {
+                items: { include: { menuItem: true } },
+            },
         });
+
+        // Emit status change event
+        this.ordersGateway.emitOrderStatusChange(order.shopId, orderId, status, order);
+
+        // If completed, emit completion event
+        if (status === 'COMPLETED') {
+            this.ordersGateway.emitOrderCompleted(order.shopId, orderId);
+        }
+
+        return order;
     }
 
     findAll(shopId: string) {
@@ -109,5 +170,131 @@ export class OrdersService {
         return this.prisma.order.delete({
             where: { id },
         });
+    }
+
+    // Cancel order with reason
+    async cancelOrder(orderId: string, reason: string, cancelledBy?: string) {
+        const order = await this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+                status: 'CANCELLED',
+                notes: `Cancelled: ${reason}${cancelledBy ? ` by ${cancelledBy}` : ''}`,
+            },
+            include: {
+                items: { include: { menuItem: true } },
+            },
+        });
+
+        // Emit cancellation event
+        this.ordersGateway.emitOrderStatusChange(order.shopId, orderId, 'CANCELLED', order);
+        this.ordersGateway.emitOrderCompleted(order.shopId, orderId);
+
+        return order;
+    }
+
+    // Hold/park order for dine-in
+    async holdOrder(orderId: string, tableNumber?: string) {
+        return this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+                status: 'HELD',
+                tableNumber,
+            },
+            include: {
+                items: { include: { menuItem: true } },
+            },
+        });
+    }
+
+    // Resume held order
+    async resumeOrder(orderId: string) {
+        const order = await this.prisma.order.update({
+            where: { id: orderId },
+            data: { status: 'PENDING' },
+            include: {
+                items: { include: { menuItem: true } },
+            },
+        });
+
+        // Emit as new order
+        this.ordersGateway.emitNewOrder(order.shopId, order);
+        this.ordersGateway.emitSoundAlert(order.shopId, 'newOrder');
+
+        return order;
+    }
+
+    // Get held orders for a shop
+    async getHeldOrders(shopId: string) {
+        return this.prisma.order.findMany({
+            where: {
+                shopId,
+                status: 'HELD',
+            },
+            include: {
+                items: { include: { menuItem: true } },
+            },
+            orderBy: { createdAt: 'asc' },
+        });
+    }
+
+    // Modify order items (only for PENDING or HELD orders)
+    async modifyOrderItems(orderId: string, items: Array<{ menuItemId: string; quantity: number }>) {
+        // Get current order
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+        });
+
+        if (!order) {
+            throw new Error('Order not found');
+        }
+
+        if (!['PENDING', 'HELD'].includes(order.status)) {
+            throw new Error('Order cannot be modified after it starts preparing');
+        }
+
+        // Delete existing items
+        await this.prisma.orderItem.deleteMany({
+            where: { orderId },
+        });
+
+        // Calculate new total and create new items
+        let totalAmount = 0;
+        const orderItemsData: { menuItemId: string; quantity: number; price: number }[] = [];
+
+        for (const item of items) {
+            const menuItem = await this.prisma.menuItem.findUnique({
+                where: { id: item.menuItemId },
+            });
+
+            if (!menuItem) continue;
+
+            const itemTotal = menuItem.price * item.quantity;
+            totalAmount += itemTotal;
+
+            orderItemsData.push({
+                menuItemId: item.menuItemId,
+                quantity: item.quantity,
+                price: menuItem.price,
+            });
+        }
+
+        // Update order with new items and total
+        const updatedOrder = await this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+                totalAmount,
+                items: {
+                    create: orderItemsData,
+                },
+            },
+            include: {
+                items: { include: { menuItem: true } },
+            },
+        });
+
+        // Emit update event
+        this.ordersGateway.emitOrderStatusChange(order.shopId, orderId, order.status, updatedOrder);
+
+        return updatedOrder;
     }
 }

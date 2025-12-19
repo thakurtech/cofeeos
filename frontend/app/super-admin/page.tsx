@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
+import Link from "next/link"
 import {
     TrendingUp,
     Store,
@@ -9,38 +10,12 @@ import {
     DollarSign,
     ArrowUpRight,
     ArrowDownRight,
-    Activity
+    Activity,
+    Plus
 } from "lucide-react"
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
-// Mock data - will be replaced with API calls
-const mockStats = {
-    mrr: 45000,
-    mrrGrowth: 12.5,
-    totalCafes: 127,
-    cafeGrowth: 8,
-    activeUsers: 2840,
-    userGrowth: 15.2,
-    ordersToday: 1456,
-    orderGrowth: -3.1
-}
-
-const mockMRRData = [
-    { month: "Jan", value: 32000 },
-    { month: "Feb", value: 35000 },
-    { month: "Mar", value: 38000 },
-    { month: "Apr", value: 40000 },
-    { month: "May", value: 42000 },
-    { month: "Jun", value: 45000 },
-]
-
-const mockRecentSignups = [
-    { name: "Bean & Brew Cafe", location: "Mumbai", date: "2 hours ago", status: "pending" },
-    { name: "Golden Cup Coffee", location: "Delhi", date: "5 hours ago", status: "approved" },
-    { name: "Espresso Express", location: "Bangalore", date: "1 day ago", status: "approved" },
-]
-
-function MetricCard({ title, value, change, icon: Icon, prefix = "" }: any) {
+function MetricCard({ title, value, change, icon: Icon, prefix = "", loading = false }: any) {
     const isPositive = change >= 0
 
     return (
@@ -49,7 +24,7 @@ function MetricCard({ title, value, change, icon: Icon, prefix = "" }: any) {
                 <div>
                     <p className="text-sm text-[#8B4513] font-medium">{title}</p>
                     <h3 className="text-3xl font-bold text-[#2B1A12] mt-1">
-                        {prefix}{value.toLocaleString()}
+                        {loading ? "..." : `${prefix}${value.toLocaleString()}`}
                     </h3>
                 </div>
                 <div className="w-12 h-12 bg-[#BF5700]/10 rounded-lg flex items-center justify-center">
@@ -66,14 +41,72 @@ function MetricCard({ title, value, change, icon: Icon, prefix = "" }: any) {
 }
 
 export default function SuperAdminDashboard() {
-    const [stats, setStats] = useState(mockStats)
+    const [stats, setStats] = useState({
+        totalCafes: 0,
+        activeUsers: 0,
+        ordersToday: 0,
+        mrr: 0
+    })
+    const [recentCafes, setRecentCafes] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        fetchPlatformStats()
+    }, [])
+
+    const fetchPlatformStats = async () => {
+        try {
+            const token = localStorage.getItem('auth_token')
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+            // Fetch all shops to calculate platform stats
+            const shopsRes = await fetch(`${API_URL}/shops`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            if (shopsRes.ok) {
+                const shops = await shopsRes.json()
+
+                // Calculate stats from real data
+                setStats({
+                    totalCafes: shops.length,
+                    activeUsers: shops.reduce((acc: number, s: any) => acc + (s._count?.users || 0), 0),
+                    ordersToday: shops.reduce((acc: number, s: any) => acc + (s._count?.orders || 0), 0),
+                    mrr: shops.length * 1000 // Simple estimate: ₹1000 per cafe
+                })
+
+                // Get 5 most recent cafes for sidebar
+                const sorted = [...shops].sort((a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                )
+                setRecentCafes(sorted.slice(0, 5))
+            }
+        } catch (error) {
+            console.error('Failed to fetch platform stats:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Generate chart data based on actual cafe count
+    const chartData = [
+        { month: "This Month", value: stats.mrr }
+    ]
 
     return (
         <div className="p-8">
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-[#2B1A12] mb-2">Platform Overview</h1>
-                <p className="text-[#8B4513]">Welcome back, Sumit. Here's what's happening with CaféOS today.</p>
+            <div className="mb-8 flex justify-between items-end">
+                <div>
+                    <h1 className="text-3xl font-bold text-[#2B1A12] mb-2">Platform Overview</h1>
+                    <p className="text-[#8B4513]">Welcome back, Sumit. Here's what's happening with CaféOS today.</p>
+                </div>
+                <Link href="/super-admin/cafes/new">
+                    <button className="bg-[#BF5700] hover:bg-[#A04000] text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        New Cafe
+                    </button>
+                </Link>
             </div>
 
             {/* Key Metrics */}
@@ -81,100 +114,127 @@ export default function SuperAdminDashboard() {
                 <MetricCard
                     title="Monthly Recurring Revenue"
                     value={stats.mrr}
-                    change={stats.mrrGrowth}
+                    change={0}
                     icon={DollarSign}
                     prefix="₹"
+                    loading={loading}
                 />
                 <MetricCard
                     title="Total Cafes"
                     value={stats.totalCafes}
-                    change={stats.cafeGrowth}
+                    change={0}
                     icon={Store}
+                    loading={loading}
                 />
                 <MetricCard
                     title="Active Users"
                     value={stats.activeUsers}
-                    change={stats.userGrowth}
+                    change={0}
                     icon={Users}
+                    loading={loading}
                 />
                 <MetricCard
-                    title="Orders Today"
+                    title="Total Orders"
                     value={stats.ordersToday}
-                    change={stats.orderGrowth}
+                    change={0}
                     icon={Activity}
+                    loading={loading}
                 />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* MRR Chart */}
+                {/* Revenue Chart */}
                 <Card className="lg:col-span-2 p-6 border-[#e6dcc8]">
-                    <h2 className="text-xl font-bold text-[#2B1A12] mb-6">Revenue Growth</h2>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={mockMRRData}>
-                            <defs>
-                                <linearGradient id="colorMRR" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#BF5700" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#BF5700" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e6dcc8" />
-                            <XAxis dataKey="month" stroke="#8B4513" />
-                            <YAxis stroke="#8B4513" />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: '#2B1A12',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    color: '#fff'
-                                }}
-                            />
-                            <Area
-                                type="monotone"
-                                dataKey="value"
-                                stroke="#BF5700"
-                                fillOpacity={1}
-                                fill="url(#colorMRR)"
-                                strokeWidth={2}
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                    <h2 className="text-xl font-bold text-[#2B1A12] mb-6">Revenue Overview</h2>
+                    <div className="h-[300px] flex items-center justify-center">
+                        {loading ? (
+                            <p className="text-gray-400">Loading...</p>
+                        ) : stats.totalCafes === 0 ? (
+                            <div className="text-center">
+                                <p className="text-gray-500 mb-4">No cafes yet. Add your first cafe to see revenue data!</p>
+                                <Link href="/super-admin/cafes/new" className="text-[#BF5700] underline">
+                                    Create First Cafe →
+                                </Link>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData}>
+                                    <defs>
+                                        <linearGradient id="colorMRR" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#BF5700" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#BF5700" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e6dcc8" />
+                                    <XAxis dataKey="month" stroke="#8B4513" />
+                                    <YAxis stroke="#8B4513" />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#2B1A12',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            color: '#fff'
+                                        }}
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="value"
+                                        stroke="#BF5700"
+                                        fillOpacity={1}
+                                        fill="url(#colorMRR)"
+                                        strokeWidth={2}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
                 </Card>
 
-                {/* Recent Signups */}
+                {/* Recent Signups - Real Data */}
                 <Card className="p-6 border-[#e6dcc8]">
-                    <h2 className="text-xl font-bold text-[#2B1A12] mb-6">Recent Signups</h2>
+                    <h2 className="text-xl font-bold text-[#2B1A12] mb-6">Recent Cafes</h2>
                     <div className="space-y-4">
-                        {mockRecentSignups.map((signup, index) => (
-                            <div key={index} className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-[#2B1A12] text-sm">{signup.name}</h3>
-                                    <p className="text-xs text-[#8B4513]">{signup.location}</p>
-                                    <p className="text-xs text-[#8B4513] mt-1">{signup.date}</p>
+                        {loading ? (
+                            <p className="text-gray-400 text-center py-4">Loading...</p>
+                        ) : recentCafes.length === 0 ? (
+                            <p className="text-gray-500 text-center py-4">No cafes yet</p>
+                        ) : (
+                            recentCafes.map((cafe: any) => (
+                                <div key={cafe.id} className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-[#2B1A12] text-sm">{cafe.name}</h3>
+                                        <p className="text-xs text-[#8B4513]">{cafe.address || 'No address'}</p>
+                                        <p className="text-xs text-[#8B4513] mt-1">
+                                            {new Date(cafe.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${cafe.isActive
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                        {cafe.isActive ? 'Active' : 'Pending'}
+                                    </span>
                                 </div>
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${signup.status === 'pending'
-                                        ? 'bg-yellow-100 text-yellow-700'
-                                        : 'bg-green-100 text-green-700'
-                                    }`}>
-                                    {signup.status}
-                                </span>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                 </Card>
             </div>
 
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                <Card className="p-6 border-[#e6dcc8] hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-br from-[#BF5700] to-[#8B4513] text-white">
-                    <Store className="w-8 h-8 mb-4" />
-                    <h3 className="font-bold text-lg mb-2">Approve Cafes</h3>
-                    <p className="text-sm text-white/80">3 pending approvals</p>
-                </Card>
+                <Link href="/super-admin/cafes">
+                    <Card className="p-6 border-[#e6dcc8] hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-br from-[#BF5700] to-[#8B4513] text-white">
+                        <Store className="w-8 h-8 mb-4" />
+                        <h3 className="font-bold text-lg mb-2">Manage Cafes</h3>
+                        <p className="text-sm text-white/80">{stats.totalCafes} cafes on platform</p>
+                    </Card>
+                </Link>
 
                 <Card className="p-6 border-[#e6dcc8] hover:shadow-lg transition-shadow cursor-pointer">
                     <Users className="w-8 h-8 mb-4 text-[#BF5700]" />
-                    <h3 className="font-bold text-lg mb-2 text-[#2B1A12]">Process Payouts</h3>
-                    <p className="text-sm text-[#8B4513]">₹24,500 in pending payouts</p>
+                    <h3 className="font-bold text-lg mb-2 text-[#2B1A12]">View Users</h3>
+                    <p className="text-sm text-[#8B4513]">{stats.activeUsers} total users</p>
                 </Card>
 
                 <Card className="p-6 border-[#e6dcc8] hover:shadow-lg transition-shadow cursor-pointer">

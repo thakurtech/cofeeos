@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     LayoutDashboard,
@@ -19,29 +19,74 @@ import {
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { useAuth } from '@/lib/auth-context';
 
 const DashboardChart = dynamic(() => import('@/components/DashboardChart'), { ssr: false });
 
-// Mock Data
-const revenueData = [
-    { name: '9AM', value: 1200 },
-    { name: '11AM', value: 3500 },
-    { name: '1PM', value: 8200 },
-    { name: '3PM', value: 5400 },
-    { name: '5PM', value: 9100 },
-    { name: '7PM', value: 12400 },
-];
-
-const recentOrders = [
-    { id: '#2841', items: '2x Cappuccino, 1x Croissant', total: '₹450', status: 'Completed', time: '2 min ago' },
-    { id: '#2842', items: '1x Iced Latte, 1x Muffin', total: '₹320', status: 'Pending', time: '5 min ago' },
-    { id: '#2843', items: '4x Espresso', total: '₹600', status: 'Processing', time: '8 min ago' },
-    { id: '#2844', items: '1x Cold Brew', total: '₹220', status: 'Completed', time: '12 min ago' },
-];
-
 export default function Dashboard() {
+    const { user, shop, logout } = useAuth();
     const [activeTab, setActiveTab] = useState('overview');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [stats, setStats] = useState({
+        todayRevenue: 0,
+        todayOrders: 0,
+        totalCustomers: 0,
+        avgWaitTime: '0m'
+    });
+    const [recentOrders, setRecentOrders] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (user?.shopId) {
+            fetchShopData();
+        } else {
+            setLoading(false);
+        }
+    }, [user?.shopId]);
+
+    const fetchShopData = async () => {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+            // Fetch shop stats
+            const statsRes = await fetch(`${API_URL}/shops/${user?.shopId}/stats`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (statsRes.ok) {
+                const statsData = await statsRes.json();
+                setStats({
+                    todayRevenue: statsData.todayRevenue || 0,
+                    todayOrders: statsData.todayOrders || 0,
+                    totalCustomers: statsData.totalCustomers || 0,
+                    avgWaitTime: '4m' // TODO: Calculate from orders
+                });
+            }
+
+            // Fetch recent orders
+            const ordersRes = await fetch(`${API_URL}/orders?shopId=${user?.shopId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (ordersRes.ok) {
+                const ordersData = await ordersRes.json();
+                setRecentOrders(ordersData.slice(0, 5));
+            }
+
+        } catch (error) {
+            console.error('Failed to fetch shop data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLogout = () => {
+        logout();
+    };
+
+    const shopName = shop?.name || 'Your Cafe';
+    const userName = user?.name || 'Cafe Owner';
 
     return (
         <div className="min-h-screen bg-[#f8f5f2] flex relative">
@@ -64,7 +109,10 @@ export default function Dashboard() {
                         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#BF5700] to-[#8B4513] flex items-center justify-center shadow-lg shadow-[#BF5700]/20">
                             <Coffee className="h-5 w-5 text-white" />
                         </div>
-                        <span className="text-2xl font-bold tracking-tight">CaféOS</span>
+                        <div>
+                            <span className="text-lg font-bold tracking-tight block">{shopName}</span>
+                            <span className="text-xs text-white/60">Powered by CaféOS</span>
+                        </div>
                     </div>
                     {/* Close button for mobile */}
                     <button
@@ -77,18 +125,15 @@ export default function Dashboard() {
 
                 <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
                     {[
-                        { id: 'overview', icon: LayoutDashboard, label: 'Overview' },
-                        { id: 'orders', icon: ShoppingBag, label: 'Orders' },
-                        { id: 'customers', icon: Users, label: 'Customers' },
-                        { id: 'menu', icon: Coffee, label: 'Menu Mgmt' },
-                        { id: 'settings', icon: Settings, label: 'Settings' },
+                        { id: 'overview', icon: LayoutDashboard, label: 'Overview', href: '/dashboard' },
+                        { id: 'orders', icon: ShoppingBag, label: 'Orders', href: '/pos' },
+                        { id: 'menu', icon: Coffee, label: 'Menu Mgmt', href: '/dashboard/menu' },
+                        { id: 'settings', icon: Settings, label: 'Settings', href: '/dashboard/settings' },
                     ].map((item) => (
-                        <button
+                        <Link
                             key={item.id}
-                            onClick={() => {
-                                setActiveTab(item.id);
-                                setIsMobileMenuOpen(false);
-                            }}
+                            href={item.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === item.id
                                 ? 'bg-[#BF5700] text-white shadow-lg shadow-[#BF5700]/20'
                                 : 'text-white/60 hover:bg-white/5 hover:text-white'
@@ -96,28 +141,25 @@ export default function Dashboard() {
                         >
                             <item.icon className="h-5 w-5" />
                             <span className="font-medium">{item.label}</span>
-                            {activeTab === item.id && <ChevronRight className="ml-auto h-4 w-4" />}
-                        </button>
+                        </Link>
                     ))}
                 </nav>
 
                 <div className="p-4 mt-auto">
                     <div className="bg-white/5 rounded-2xl p-4 mb-4">
-                        <div className="text-sm text-white/60 mb-1">Daily Goal</div>
+                        <div className="text-sm text-white/60 mb-1">Today's Progress</div>
                         <div className="flex justify-between items-end mb-2">
-                            <span className="text-xl font-bold">82%</span>
-                            <span className="text-xs text-[#BF5700]">On Track</span>
-                        </div>
-                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full w-[82%] bg-gradient-to-r from-[#BF5700] to-[#D4A017]" />
+                            <span className="text-xl font-bold">{stats.todayOrders} orders</span>
+                            <span className="text-xs text-[#BF5700]">₹{stats.todayRevenue.toLocaleString()}</span>
                         </div>
                     </div>
-                    <Link href="/login">
-                        <button className="w-full flex items-center gap-3 px-4 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
-                            <LogOut className="h-5 w-5" />
-                            <span className="font-medium">Sign Out</span>
-                        </button>
-                    </Link>
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                    >
+                        <LogOut className="h-5 w-5" />
+                        <span className="font-medium">Sign Out</span>
+                    </button>
                 </div>
             </aside>
 
@@ -135,26 +177,23 @@ export default function Dashboard() {
                         </button>
 
                         <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-[#2B1A12] mb-1">Good Morning, Sumit</h1>
-                            <p className="text-sm md:text-base text-[#5C4033]">Here's what's happening today.</p>
+                            <h1 className="text-2xl md:text-3xl font-bold text-[#2B1A12] mb-1">
+                                Welcome, {userName}
+                            </h1>
+                            <p className="text-sm md:text-base text-[#5C4033]">
+                                {loading ? 'Loading...' : `Here's what's happening at ${shopName} today.`}
+                            </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                        <div className="relative hidden md:block">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5C4033]/50" />
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                className="pl-10 pr-4 py-2.5 rounded-xl border-none bg-white shadow-sm focus:ring-2 focus:ring-[#BF5700]/20 w-64 text-[#2B1A12]"
-                            />
-                        </div>
-                        <button className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-[#5C4033] hover:text-[#BF5700] transition-colors relative">
-                            <Bell className="h-5 w-5" />
-                            <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-white" />
-                        </button>
+                        <Link href="/pos">
+                            <Button className="bg-[#BF5700] hover:bg-[#A04000] text-white">
+                                Open POS
+                            </Button>
+                        </Link>
                         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#2B1A12] to-[#5C4033] flex items-center justify-center text-white font-bold shadow-lg">
-                            S
+                            {userName.charAt(0).toUpperCase()}
                         </div>
                     </div>
                 </header>
@@ -162,10 +201,10 @@ export default function Dashboard() {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-10">
                     {[
-                        { label: 'Total Revenue', value: '₹12,450', change: '+15%', icon: DollarSign, color: 'from-[#BF5700] to-[#D4A017]' },
-                        { label: 'Active Orders', value: '18', change: '+4', icon: ShoppingBag, color: 'from-[#2B1A12] to-[#5C4033]' },
-                        { label: 'Total Customers', value: '142', change: '+12%', icon: Users, color: 'from-[#52805c] to-[#3d5f45]' },
-                        { label: 'Avg. Wait Time', value: '4m 12s', change: '-30s', icon: Clock, color: 'from-[#cc7a4a] to-[#a8623a]' },
+                        { label: 'Today\'s Revenue', value: `₹${stats.todayRevenue.toLocaleString()}`, icon: DollarSign, color: 'from-[#BF5700] to-[#D4A017]' },
+                        { label: 'Today\'s Orders', value: stats.todayOrders.toString(), icon: ShoppingBag, color: 'from-[#2B1A12] to-[#5C4033]' },
+                        { label: 'Total Customers', value: stats.totalCustomers.toString(), icon: Users, color: 'from-[#52805c] to-[#3d5f45]' },
+                        { label: 'Avg. Wait Time', value: stats.avgWaitTime, icon: Clock, color: 'from-[#cc7a4a] to-[#a8623a]' },
                     ].map((stat, i) => (
                         <motion.div
                             key={i}
@@ -178,11 +217,10 @@ export default function Dashboard() {
                                 <div className={`h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-lg`}>
                                     <stat.icon className="h-5 w-5 md:h-6 md:w-6 text-white" />
                                 </div>
-                                <span className="px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">
-                                    {stat.change}
-                                </span>
                             </div>
-                            <div className="text-2xl md:text-3xl font-bold text-[#2B1A12] mb-1">{stat.value}</div>
+                            <div className="text-2xl md:text-3xl font-bold text-[#2B1A12] mb-1">
+                                {loading ? '...' : stat.value}
+                            </div>
                             <div className="text-sm text-[#5C4033]">{stat.label}</div>
                         </motion.div>
                     ))}
@@ -194,14 +232,24 @@ export default function Dashboard() {
                     <div className="lg:col-span-2 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#e8dfd6]">
                         <div className="flex justify-between items-center mb-6 md:mb-8">
                             <h3 className="text-lg md:text-xl font-bold text-[#2B1A12]">Revenue Overview</h3>
-                            <select className="bg-[#f8f5f2] border-none rounded-lg px-3 py-1 text-sm font-medium text-[#5C4033]">
-                                <option>Today</option>
-                                <option>This Week</option>
-                                <option>This Month</option>
-                            </select>
                         </div>
                         <div className="h-64 md:h-80">
-                            <DashboardChart />
+                            {loading ? (
+                                <div className="h-full flex items-center justify-center text-gray-400">
+                                    Loading chart...
+                                </div>
+                            ) : stats.todayOrders === 0 ? (
+                                <div className="h-full flex items-center justify-center text-gray-500">
+                                    <div className="text-center">
+                                        <p className="mb-4">No orders yet today</p>
+                                        <Link href="/pos" className="text-[#BF5700] underline">
+                                            Create your first order →
+                                        </Link>
+                                    </div>
+                                </div>
+                            ) : (
+                                <DashboardChart />
+                            )}
                         </div>
                     </div>
 
@@ -212,27 +260,39 @@ export default function Dashboard() {
                             <Link href="/pos" className="text-sm font-bold text-[#BF5700] hover:underline">View All</Link>
                         </div>
                         <div className="space-y-4 md:space-y-6">
-                            {recentOrders.map((order, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 hover:bg-[#f8f5f2] rounded-xl transition-colors cursor-pointer group">
-                                    <div className="flex items-center gap-3 md:gap-4">
-                                        <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-[#BF5700]/10 flex items-center justify-center text-[#BF5700] font-bold group-hover:bg-[#BF5700] group-hover:text-white transition-colors text-xs md:text-sm">
-                                            {order.id.slice(1)}
+                            {loading ? (
+                                <p className="text-gray-400 text-center py-4">Loading...</p>
+                            ) : recentOrders.length === 0 ? (
+                                <p className="text-gray-500 text-center py-4">No orders yet</p>
+                            ) : (
+                                recentOrders.map((order: any, i: number) => (
+                                    <div key={order.id || i} className="flex items-center justify-between p-3 hover:bg-[#f8f5f2] rounded-xl transition-colors cursor-pointer group">
+                                        <div className="flex items-center gap-3 md:gap-4">
+                                            <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-[#BF5700]/10 flex items-center justify-center text-[#BF5700] font-bold group-hover:bg-[#BF5700] group-hover:text-white transition-colors text-xs md:text-sm">
+                                                #{order.shortId}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-[#2B1A12] text-sm md:text-base">
+                                                    {order.items?.length || 0} items
+                                                </div>
+                                                <div className="text-xs text-[#5C4033]">
+                                                    {new Date(order.createdAt).toLocaleTimeString()}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div className="font-bold text-[#2B1A12] text-sm md:text-base">{order.items}</div>
-                                            <div className="text-xs text-[#5C4033]">{order.time}</div>
+                                        <div className="text-right">
+                                            <div className="font-bold text-[#2B1A12] text-sm md:text-base">
+                                                ₹{order.totalAmount?.toLocaleString() || 0}
+                                            </div>
+                                            <div className={`text-xs font-medium ${order.status === 'COMPLETED' ? 'text-green-600' :
+                                                order.status === 'PENDING' ? 'text-orange-500' : 'text-blue-500'
+                                                }`}>
+                                                {order.status}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="font-bold text-[#2B1A12] text-sm md:text-base">{order.total}</div>
-                                        <div className={`text-xs font-medium ${order.status === 'Completed' ? 'text-green-600' :
-                                            order.status === 'Pending' ? 'text-orange-500' : 'text-blue-500'
-                                            }`}>
-                                            {order.status}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                         <Link href="/pos">
                             <Button className="w-full mt-6 bg-[#2B1A12] hover:bg-[#BF5700] text-white rounded-xl h-12">

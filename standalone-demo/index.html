@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CaféOS - Complete Product Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+        }
+
+        #player {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .slide.active {
+            opacity: 1;
+        }
+
+        .caption-container {
+            position: absolute;
+            bottom: 80px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .caption {
+            display: inline-block;
+            background: rgba(13, 17, 23, 0.95);
+            color: #fff;
+            padding: 20px 40px;
+            border-radius: 50px;
+            font-size: 22px;
+            font-weight: 300;
+            backdrop-filter: blur(20px);
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 1s ease;
+            border: 1px solid rgba(191, 87, 0, 0.3);
+            max-width: 90%;
+        }
+
+        .caption.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #BF5700 0%, #D4A017 100%);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        #play-btn {
+            position: absolute;
+            z-index: 20;
+            background: linear-gradient(135deg, #BF5700 0%, #8B4513 100%);
+            color: white;
+            border: none;
+            padding: 25px 50px;
+            font-size: 28px;
+            border-radius: 60px;
+            cursor: pointer;
+            box-shadow: 0 10px 40px rgba(191, 87, 0, 0.4);
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        #play-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 50px rgba(191, 87, 0, 0.6);
+        }
+
+        .slide-counter {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            background: rgba(13, 17, 23, 0.95);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 12;
+            border: 1px solid rgba(191, 87, 0, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="player">
+        <button id="play-btn">▶ Play Complete Demo (16 Slides)</button>
+
+        <div class="slide-counter"><span id="current">1</span> / <span id="total">16</span></div>
+
+        <!-- Landing Page (3 slides) -->
+        <div class="slide" style="background-image: url('images/01-landing-hero.png');"></div>
+        <div class="slide" style="background-image: url('images/02-landing-features.png');"></div>
+        <div class="slide" style="background-image: url('images/03-landing-footer.png');"></div>
+
+        <!-- Login (1 slide) -->
+        <div class="slide" style="background-image: url('images/04-login.png');"></div>
+
+        <!-- Dashboard (1 slide) -->
+        <div class="slide" style="background-image: url('images/05-dashboard.png');"></div>
+
+        <!-- POS System (2 slides) -->
+        <div class="slide" style="background-image: url('images/06-pos-menu.png');"></div>
+        <div class="slide" style="background-image: url('images/07-pos-cart.png');"></div>
+
+        <!-- Kitchen Display (1 slide) -->
+        <div class="slide" style="background-image: url('images/08-kitchen.png');"></div>
+
+        <!-- Affiliate Program (4 slides) -->
+        <div class="slide" style="background-image: url('images/09-affiliate-dashboard.png');"></div>
+        <div class="slide" style="background-image: url('images/10-affiliate-dashboard.png');"></div>
+        <div class="slide" style="background-image: url('images/11-affiliate-materials.png');"></div>
+        <div class="slide" style="background-image: url('images/12-affiliate-payouts.png');"></div>
+
+        <!-- Loyalty Program (1 slide) -->
+        <div class="slide" style="background-image: url('images/13-loyalty.png');"></div>
+
+        <!-- Super Admin (3 slides) -->
+        <div class="slide" style="background-image: url('images/14-superadmin-dashboard.png');"></div>
+        <div class="slide" style="background-image: url('images/15-superadmin-cafes.png');"></div>
+        <div class="slide" style="background-image: url('images/16-superadmin-settings.png');"></div>
+
+        <div class="caption-container">
+            <!-- Landing Page Captions (3) -->
+            <div class="caption">🏠 Welcome to CaféOS — The complete operating system for modern cafés</div>
+            <div class="caption">✨ Feature Overview — Powerful tools for every aspect of your business</div>
+            <div class="caption">🚀 Ready to Transform — Get started with the future of café management</div>
+
+            <!-- Login Caption (1) -->
+            <div class="caption">🔐 Secure Authentication — Role-based access control for your entire team</div>
+
+            <!-- Dashboard Caption (1) -->
+            <div class="caption">📊 Real-Time Dashboard — Monitor revenue, orders, and performance at a glance</div>
+
+            <!-- POS Captions (2) -->
+            <div class="caption">☕ Point of Sale — Browse menu and add items with lightning speed</div>
+            <div class="caption">🛒 Shopping Cart — Review orders and checkout seamlessly</div>
+
+            <!-- Kitchen Caption (1) -->
+            <div class="caption">🍳 Kitchen Display System — Real-time order synchronization for your kitchen staff
+            </div>
+
+            <!-- Affiliate Captions (4) -->
+            <div class="caption">🤝 Affiliate Program — Earn commissions by referring new cafés</div>
+            <div class="caption">💰 Affiliate Earnings — Track your performance and revenue in real-time</div>
+            <div class="caption">📢 Marketing Materials — Access professional banners and promotional content</div>
+            <div class="caption">💳 Payout Management — Easy withdrawal system for your affiliate earnings</div>
+
+            <!-- Loyalty Caption (1) -->
+            <div class="caption">🎁 Loyalty Program — Reward customers with points and exclusive perks</div>
+
+            <!-- Super Admin Captions (3) -->
+            <div class="caption">👑 Super Admin Dashboard — Platform-wide analytics and control</div>
+            <div class="caption">🏢 Manage Cafés — Oversee and configure all registered café locations</div>
+            <div class="caption">⚙️ Platform Settings — Fine-tune every aspect of the CaféOS ecosystem</div>
+
+            <!-- Final Caption -->
+            <div class="caption">🎊 CaféOS — The Complete Solution for Your Café Business</div>
+        </div>
+
+        <div class="progress-bar"></div>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const captions = document.querySelectorAll('.caption');
+        const playBtn = document.getElementById('play-btn');
+        const progressBar = document.querySelector('.progress-bar');
+        const currentSlideEl = document.getElementById('current');
+        const totalSlideEl = document.getElementById('total');
+
+        let currentSlide = 0;
+        const slideDuration = 4000; // 4 seconds per slide
+        const totalDuration = slides.length * slideDuration;
+        let startTime;
+        let animationId;
+
+        totalSlideEl.textContent = slides.length;
+
+        function startDemo() {
+            playBtn.style.display = 'none';
+            startTime = Date.now();
+            currentSlide = 0;
+            showSlide(0);
+            animate();
+        }
+
+        function showSlide(index) {
+            slides.forEach(s => s.classList.remove('active'));
+            captions.forEach(c => c.classList.remove('active'));
+
+            if (slides[index]) {
+                slides[index].classList.add('active');
+                if (captions[index]) captions[index].classList.add('active');
+                currentSlideEl.textContent = index + 1;
+            }
+        }
+
+        function animate() {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / totalDuration, 1);
+
+            progressBar.style.width = `${progress * 100}%`;
+
+            const slideIndex = Math.floor(elapsed / slideDuration);
+
+            if (slideIndex !== currentSlide && slideIndex < slides.length) {
+                currentSlide = slideIndex;
+                showSlide(currentSlide);
+            }
+
+            if (elapsed < totalDuration) {
+                animationId = requestAnimationFrame(animate);
+            } else {
+                // Show final caption
+                captions[captions.length - 1].classList.add('active');
+                setTimeout(() => {
+                    playBtn.textContent = "↻ Replay Demo";
+                    playBtn.style.display = 'block';
+                }, 2000);
+            }
+        }
+
+        playBtn.addEventListener('click', () => {
+            currentSlide = 0;
+            slides.forEach(s => s.classList.remove('active'));
+            captions.forEach(c => c.classList.remove('active'));
+            progressBar.style.width = '0%';
+            if (animationId) cancelAnimationFrame(animationId);
+            startDemo();
+        });
+    </script>
+</body>
+
+</html>
