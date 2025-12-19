@@ -26,13 +26,14 @@ export function RevealOnScroll({ children, className, delay = 0 }: RevealOnScrol
 }
 
 // --- MagneticButton ---
-interface MagneticButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface MagneticButtonProps {
     children: React.ReactNode
     className?: string
     strength?: number
+    onClick?: () => void
 }
 
-export function MagneticButton({ children, className, strength = 0.5, ...props }: MagneticButtonProps) {
+export function MagneticButton({ children, className, strength = 0.5, onClick }: MagneticButtonProps) {
     const ref = useRef<HTMLButtonElement>(null)
     const x = useMotionValue(0)
     const y = useMotionValue(0)
@@ -57,10 +58,10 @@ export function MagneticButton({ children, className, strength = 0.5, ...props }
             ref={ref}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
+            onClick={onClick}
             style={{ x, y }}
             transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
             className={cn("relative", className)}
-            {...props}
         >
             {children}
         </motion.button>
